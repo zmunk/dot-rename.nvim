@@ -13,6 +13,7 @@ A Neovim plugin for renaming occurrences of a word with a repeatable, dot-comman
     mappings = {
       visual = "<leader>r",  -- rename visual selection as word
       normal = "<leader>rw", -- rename word
+      resume = "<leader>rr", -- resume renaming
     }
   },
 }
@@ -40,6 +41,11 @@ A Neovim plugin for renaming occurrences of a word with a repeatable, dot-comman
 6. Press `.` to apply the rename to this occurrence
 7. Repeat `n.` as many times as desired
 
+### Resume renaming
+
+If you do any edit operation during renaming, it cancels the dot-repeatable action.
+To resume, type the 'resume' mapping (e.g. `<leader>rr`).
+
 ## Configuration
 
 ### Mappings
@@ -52,6 +58,7 @@ require('dot-rename').setup({
   mappings = {
     visual = "<leader>r",  -- rename visual selection as word
     normal = "<leader>rw", -- rename word
+    resume = "<leader>rr", -- resume renaming
   }
 })
 ```

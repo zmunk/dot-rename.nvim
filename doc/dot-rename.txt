@@ -48,6 +48,7 @@ Using lazy.nvim: >lua
         mappings = {
           visual = "<leader>r",  -- rename visual selection as word
           normal = "<leader>rw", -- rename word
+          resume = "<leader>rr", -- resume renaming
         }
       },
     }
@@ -77,6 +78,11 @@ Renaming word under the cursor~
 5. Press n to navigate to the next occurrence
 6. Press `.` to apply the rename to this occurrence
 7. Repeat `n.` as many times as desired
+
+Resume renaming~
+
+If you do any edit operation during renaming, it cancels the dot-repeatable action.
+To resume, type the 'resume' mapping (e.g. `<leader>rr`).
 
 Example~
 
@@ -121,6 +127,7 @@ Example configuration~
       mappings = {
         visual = "<leader>r",  -- rename visual selection as word
         normal = "<leader>rw", -- rename word
+        resume = "<leader>rr", -- resume renaming
       }
     })
 <
@@ -135,6 +142,8 @@ Visual mode     Start rename for selected text
 
 Normal mode     Rename word under cursor
                 Maps to: `viwy:RenameTo <C-r>"<C-f>v0W`
+
+Resume          Resume rename operation.
 
 After Initiating Rename~
 

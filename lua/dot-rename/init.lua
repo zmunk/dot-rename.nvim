@@ -1,16 +1,41 @@
+local utils = require('dot-rename.utils')
+
 local M = {}
 
 local default_opts = {
   mappings = {}
 }
 
--- E.g: `opts = set_opts(opts, { only_current_line = false })`
-local function set_opts(opts, defaults)
-  return vim.tbl_extend("force", defaults, opts or {})
+local repeatable_replace = function(motion_type)
+  if motion_type ~= "char" then
+    vim.notify("Unhandled motion_type for this operator: " .. motion_type, vim.log.levels.ERROR)
+    return
+  end
+
+  if vim.b.replacement_text == nil then
+    vim.notify("vim.b.replacement_text not set", vim.log.levels.ERROR)
+    return
+  end
+
+  if vim.b.text_to_rename == nil then
+    vim.notify("no text selected", vim.log.levels.ERROR)
+    return
+  end
+
+  -- set '/' register to yanked text
+  local cmd = ":<C-u>" ..
+      "let @/='\\<" .. vim.b.text_to_rename .. "\\>'<CR>"
+
+  -- change current occurrence to replacement_text
+  cmd = cmd .. "cgn" .. vim.b.replacement_text .. "<Esc>"
+
+  vim.o.hls = true -- force re-highlight
+  vim.cmd('normal! ' .. utils.replace_termcodes(cmd))
 end
 
+
 M.setup = function(opts)
-  opts = set_opts(opts, default_opts)
+  opts = utils.set_opts(opts, default_opts)
 
   -- usage: ':RenameTo newValue'
   vim.api.nvim_create_user_command(
@@ -30,41 +55,16 @@ M.setup = function(opts)
       "viwy:RenameTo <C-r>\"<C-f>v0W",
       { desc = "Rename word under cursor", remap = false })
   end
-end
 
-local replace_termcodes = function(keys)
-  -- Converts special key notation like <Esc> into actual key codes
-  --   true - from_part: treat as key sequence
-  --   false - do_lt: don't interpret <lt>
-  --   true - special: interpret special keys like <Esc>
-  return vim.api.nvim_replace_termcodes(keys, true, false, true)
-end
-
-local repeatable_replace = function(motion_type)
-  if motion_type ~= "char" then
-    vim.notify("Unhandled motion_type for this operator: " .. motion_type, vim.log.levels.ERROR)
-    return
+  if opts.mappings.resume ~= nil then
+    vim.keymap.set("n", opts.mappings.resume, function()
+        if vim.b.text_to_rename == nil or vim.b.replacement_text == nil then
+          return
+        end
+        repeatable_replace("char")
+      end,
+      { desc = "Resume last rename operation", remap = false })
   end
-
-  if vim.b.replacement_text == nil then
-    vim.notify("vim.b.replacement_text not set", vim.log.levels.ERROR)
-    return
-  end
-
-  local cmd = '`[v`]y' -- visually select and yank
-
-  -- set '/' register to yanked text
-  cmd = cmd ..
-      ":<C-u>" ..
-      "let @/='\\<" ..
-      '<C-r>"' ..
-      "\\>'<CR>"
-
-  -- change current occurrence to replacement_text
-  cmd = cmd .. "cgn" .. vim.b.replacement_text .. "<Esc>"
-
-  vim.o.hls = true -- force re-highlight
-  vim.cmd('normal! ' .. replace_termcodes(cmd))
 end
 
 _G.dot_rename = _G.dot_rename or {}
@@ -77,9 +77,11 @@ M.rename_selected_word = function(opts)
   end
   vim.b.replacement_text = opts.args
 
+  vim.b.text_to_rename = utils.get_selection()
+
   -- this allows us to repeat the action using '.'
   vim.go.operatorfunc = "v:lua.dot_rename.repeatable_replace"
-  vim.api.nvim_feedkeys(replace_termcodes("gvg@"), "x", false)
+  vim.api.nvim_feedkeys("gvg@", "x", false)
 
   vim.schedule(function()
     vim.notify("Press 'n' to go to next occurrence and '.' to repeat rename action.", vim.log.levels.INFO)
