@@ -1,6 +1,6 @@
 # dot-rename.nvim
 
-A Neovim plugin for renaming occurrences of a word with a repeatable, dot-command-friendly workflow.
+A small Neovim plugin for pattern-based renames with `cgn` and `.` repeat.
 
 ## Installation
 
@@ -11,69 +11,99 @@ A Neovim plugin for renaming occurrences of a word with a repeatable, dot-comman
   'zmunk/dot-rename.nvim',
   opts = {
     mappings = {
-      visual = "<leader>r",  -- rename visual selection as word
-      normal = "<leader>rw", -- rename word
-      resume = "<leader>rr", -- resume renaming
-    }
+      visual = '<leader>r',
+      normal = '<leader>rw',
+    },
   },
 }
 ```
 
+## What changed
+
+The plugin now starts renames with `:RenamePattern` / `:rename` and applies the
+first replacement immediately with `cgn`.
+
+- no separate resume mapping
+- works from a pattern/replacement pair
+- uses whatever delimiter you put first
+
 ## Usage
 
-### Rename selected word
+### Command
 
-1. Visually select a word (`viw`)
-2. Type the mapping you set for visual mode (e.g. `<leader>r`)
-3. Change/modify the word in the command line (e.g. `:RenameTo my_updated_var_name`)
-4. Press enter to change the current occurrence
-5. Press n to navigate to the next occurrence
-6. Press `.` to apply the rename to this occurrence
-7. Repeat `n.` as many times as desired
+You can start a rename in any of these forms:
 
-### Rename word under the cursor
+```vim
+:RenamePattern /from/to
+:rename /from/to
+:rename/from/to
+```
 
-1. Place the cursor is on the word you'd like to rename
-2. Type the mapping you set for normal mode (e.g. `<leader>rw`)
-3. Change/modify the word in the command line (e.g. `:RenameTo my_updated_var_name`)
-4. Press enter to change the current occurrence
-5. Press n to navigate to the next occurrence
-6. Press `.` to apply the rename to this occurrence
-7. Repeat `n.` as many times as desired
+Rules:
 
-### Resume renaming
+- the first character is the delimiter
+- `from` is a Vim search pattern
+- `to` is inserted as plain replacement text
+- escape the delimiter inside either side, e.g. `:rename /foo\/bar/baz/`
 
-If you do any edit operation during renaming, it cancels the dot-repeatable action.
-To resume, type the 'resume' mapping (e.g. `<leader>rr`).
+If the pattern is found, the plugin:
+
+1. stores it in the search register
+2. enables search highlighting
+3. runs `cgn` with the replacement on the current match
+4. lets you continue with `n` + `.`
+
+### Rename the word under the cursor
+
+With the normal mapping:
+
+1. place the cursor on a word
+2. trigger your mapping (for example `<leader>rw`)
+3. edit the command line
+4. press `<CR>`
+5. use `n` and `.` to keep renaming matches
+
+The mapping pre-fills this command shape:
+
+```vim
+:RenamePattern/\<word\>/word
+```
+
+So normal-mode rename matches whole words only.
+
+### Rename a visual selection
+
+With the visual mapping:
+
+1. select text
+2. trigger your mapping (for example `<leader>r`)
+3. edit the command line
+4. press `<CR>`
+5. use `n` and `.` to keep renaming matches
+
+The visual mapping pre-fills the selected text as both pattern and replacement,
+so you can quickly change the replacement or both sides.
 
 ## Configuration
-
-### Mappings
-
-The plugin requires you to specify the desired mappings.
-Set the mappings to whatever you want. For example:
 
 ```lua
 require('dot-rename').setup({
   mappings = {
-    visual = "<leader>r",  -- rename visual selection as word
-    normal = "<leader>rw", -- rename word
-    resume = "<leader>rr", -- resume renaming
-  }
+    visual = '<leader>r',
+    normal = '<leader>rw',
+  },
 })
 ```
 
+`mappings.visual` and `mappings.normal` are optional.
+
 ## Tips
 
-- **Skip occurrences**: Press `n` to skip and move to the next match
-- **Go backwards**: Use `N` to search in reverse
-- **Undo**: Press `u` to undo the last change
-- **Search highlighting**: The plugin automatically enables search highlighting (`hlsearch`)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
+- `n` jumps to the next match
+- `N` jumps to the previous match
+- `.` repeats the last rename on the current match
+- `:noh` clears highlight when you are done
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).

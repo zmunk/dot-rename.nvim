@@ -1,6 +1,6 @@
-*dot-rename.txt*  Repeatable word renaming with dot command support
+*dot-rename.txt*  Pattern-based renaming with |cgn| and dot-repeat
 
-Author:  Your Name <your@email.com>
+Author:  zmunk
 License: MIT
 
 ==============================================================================
@@ -13,29 +13,26 @@ CONTENTS                                          *dot-rename-contents*
     5. Configuration ......................... |dot-rename-configuration|
     6. Commands .............................. |dot-rename-commands|
     7. Mappings .............................. |dot-rename-mappings|
-    8. Tips and Tricks ....................... |dot-rename-tips|
-    9. Troubleshooting ....................... |dot-rename-troubleshooting|
-    10. License .............................. |dot-rename-license|
+    8. Notes ................................. |dot-rename-notes|
+    9. License ............................... |dot-rename-license|
 
 ==============================================================================
 1. INTRODUCTION                                      *dot-rename-intro*
 
-dot-rename.nvim provides a streamlined workflow for renaming occurrences of a
-word or selection with fine-grained control over each replacement.
+dot-rename.nvim starts a rename from a Vim search pattern and replacement,
+applies the first match with |cgn|, then lets you continue with `n` and `.`.
 
-The key features are:
-  • Visual and normal mode initiation
-  • Repeatable with the `.` (dot) command
-  • Integration with Vim's navigation (`n`/`N`)
-  • Simple and lightweight
-
-This is ideal for quick refactoring tasks, text editing, or situations where
-you want to review each change before applying it.
+Features: ~
+  • Pattern-based rename command
+  • Whole-word rename mapping for normal mode
+  • Visual selection rename mapping
+  • Dot-repeatable follow-up replacements
+  • Uses Vim search navigation and highlighting
 
 ==============================================================================
 2. REQUIREMENTS                                *dot-rename-requirements*
 
-  • Neovim >= 0.7.0 (uses Lua API features)
+  • Neovim >= 0.7.0
   • No external dependencies
 
 ==============================================================================
@@ -46,176 +43,159 @@ Using lazy.nvim: >lua
       'zmunk/dot-rename.nvim',
       opts = {
         mappings = {
-          visual = "<leader>r",  -- rename visual selection as word
-          normal = "<leader>rw", -- rename word
-          resume = "<leader>rr", -- resume renaming
-        }
+          visual = '<leader>r',
+          normal = '<leader>rw',
+        },
       },
     }
 <
 
-Other package managers can be used as well such as packer.nvim or vim-plug.
-
 ==============================================================================
 4. USAGE                                              *dot-rename-usage*
 
-Renaming selected word~
+Command forms~
 
-1. Visually select a word (`viw`)
-2. Type the mapping you set for visual mode (e.g. `<leader>r`)
-3. Change/modify the word in the command line (e.g. `:RenameTo my_updated_var_name`)
-4. Press enter to change the current occurrence
-5. Press n to navigate to the next occurrence
-6. Press `.` to apply the rename to this occurrence
-7. Repeat `n.` as many times as desired
+Start a rename with any of these: >vim
+    :RenamePattern /from/to
+    :rename /from/to
+    :rename/from/to
+<
 
-Renaming word under the cursor~
+Behavior~
 
-1. Place the cursor is on the word you'd like to rename
-2. Type the mapping you set for normal mode (e.g. `<leader>rw`)
-3. Change/modify the word in the command line (e.g. `:RenameTo my_updated_var_name`)
-4. Press enter to change the current occurrence
-5. Press n to navigate to the next occurrence
-6. Press `.` to apply the rename to this occurrence
-7. Repeat `n.` as many times as desired
+The first character is treated as the delimiter. `from` is used as a Vim
+search pattern. `to` is inserted as replacement text.
 
-Resume renaming~
+If the pattern is found, dot-rename.nvim:
+  1. writes the pattern into the search register (`/`)
+  2. enables search highlighting
+  3. performs the first replacement with |cgn|
+  4. leaves you ready to continue with `n` and `.`
 
-If you do any edit operation during renaming, it cancels the dot-repeatable action.
-To resume, type the 'resume' mapping (e.g. `<leader>rr`).
+Normal-mode flow~
+
+1. Place the cursor on a word.
+2. Trigger your normal mapping.
+3. Edit the command line.
+4. Press <CR>.
+5. Use `n` and `.` to apply more replacements.
+
+The normal mapping pre-fills: >vim
+    :RenamePattern/\<word\>/word
+<
+
+This makes the default normal-mode flow match whole words only.
+
+Visual-mode flow~
+
+1. Select text in visual mode.
+2. Trigger your visual mapping.
+3. Edit the command line.
+4. Press <CR>.
+5. Use `n` and `.` to apply more replacements.
+
+The visual mapping pre-fills the selection as both the search and replacement
+text so you can quickly edit either side.
 
 Example~
 
-Given this code: >lua
-    local oldName = 10
-    print(oldName)
-    return oldName
+Given: >lua
+    local old_name = 10
+    print(old_name)
+    return old_name
 <
 
-To rename `oldName` to `newName`:
-  1. Place cursor on first `oldName`
-  2. Type `<leader>rw`
-  3. Type `c` to change selected text in command line then type `newName` and press <CR>
-  4. Press `n` to jump to second occurrence
-  5. Press `.` to rename it
-  6. Press `n` then `.` again for the third occurrence
+Rename only whole-word matches from normal mode: >vim
+    :RenamePattern /\<old_name\>/new_name
+<
 
-Alternatively, visually select `oldName` and type `<leader>r` and repeat steps 3-6 above.
+After the first change, press `n.` to continue through the file.
 
 ==============================================================================
 5. CONFIGURATION                              *dot-rename-configuration*
 
-Setup Function~
                                                *dot-rename.setup()*
 setup({opts})
-    Configure the plugin.
+    Configure dot-rename.nvim.
 
     Parameters: ~
-        {opts} (table|nil) Configuration options
+        {opts} (table|nil)
 
     Fields: ~
-        {mappings} (table|false) Keymap configuration
-            • Provide custom mapping keys:
-              - {visual} (string) Visual mode mapping
-              - {normal} (string) Normal mode mapping
+        {mappings} (table)
+            {visual} (string|nil)  Visual-mode mapping
+            {normal} (string|nil)  Normal-mode mapping
 
-The plugin requires you to specify the desired mappings.
-
-Example configuration~
->lua
+Example: >lua
     require('dot-rename').setup({
       mappings = {
-        visual = "<leader>r",  -- rename visual selection as word
-        normal = "<leader>rw", -- rename word
-        resume = "<leader>rr", -- resume renaming
-      }
+        visual = '<leader>r',
+        normal = '<leader>rw',
+      },
     })
+<
+
+==============================================================================
+6. COMMANDS                                        *dot-rename-commands*
+
+                                               *:RenamePattern*
+:RenamePattern {delim}{pattern}{delim}{replacement}
+    Start a rename using {pattern} and {replacement}.
+
+                                                *:rename*
+:rename {delim}{pattern}{delim}{replacement}
+:rename{delim}{pattern}{delim}{replacement}
+    Command-line abbreviation for |:RenamePattern|.
+
+Examples: >vim
+    :RenamePattern /foo/bar
+    :rename /foo/bar
+    :rename#foo#bar
 <
 
 ==============================================================================
 7. MAPPINGS                                        *dot-rename-mappings*
 
-Mappings~
+Mappings are only created when configured.
 
-Visual mode     Start rename for selected text
-                Maps to: `y:<C-u>RenameTo <C-r>"<C-f>v0W`
+Visual mode~
+    Starts |:RenamePattern| with the current selection inserted as both the
+    pattern and replacement.
 
-Normal mode     Rename word under cursor
-                Maps to: `viwy:RenameTo <C-r>"<C-f>v0W`
+Normal mode~
+    Starts |:RenamePattern| with the word under the cursor inserted as both the
+    pattern and replacement, wrapping the pattern in `\<` and `\>`.
 
-Resume          Resume rename operation.
-
-After Initiating Rename~
-
-Once you've started a rename operation:
-  `n`           Jump to next occurrence
-  `N`           Jump to previous occurrence
-  `.`           Repeat the rename on current occurrence
-  `u`           Undo the last change
+After starting a rename~
+    `n`     Jump to the next match
+    `N`     Jump to the previous match
+    `.`     Repeat the last replacement on the current match
 
 ==============================================================================
-8. TIPS AND TRICKS                                   *dot-rename-tips*
+8. NOTES                                              *dot-rename-notes*
 
-Selective Renaming~
-    You don't have to rename every occurrence. Press `n` to skip occurrences
-    you don't want to change.
+Delimiter escaping~
+    Escape the active delimiter with a backslash when needed.
 
-Undo Strategy~
-    Each rename is a separate change, so you can undo them individually with
-    `u`.
+    Example: >vim
+        :rename /foo\/bar/baz/
+    <
 
-Search Pattern~
-    The plugin sets your search register (`/`) to the word you're renaming
-    with word boundaries. You can use `:noh` to clear highlighting when done.
+Search behavior~
+    Matching uses Vim's regular search engine. Case sensitivity follows your
+    current search options such as 'ignorecase' and 'smartcase'.
 
-Case Sensitivity~
-    Respects your 'ignorecase' and 'smartcase' settings. For case-sensitive
-    renaming, ensure 'ignorecase' is off.
+Pattern not found~
+    If the pattern does not exist in the current buffer, the command aborts and
+    shows an error notification.
 
-Combine with Macros~
-    You can record the rename workflow in a macro for complex patterns:
-    `qa` (start recording), perform rename, `q` (stop), then `@a` to replay.
+Clearing highlight~
+    Use `:noh` when you no longer want search highlighting.
 
 ==============================================================================
-9. TROUBLESHOOTING                          *dot-rename-troubleshooting*
-
-"vim.b.replacement_text not set" error~
-    This occurs if you try to use the dot command without first initiating a
-    rename. Always start with the visual or normal mode mapping.
-
-No matches found~
-    The search uses word boundaries (`\<...\>`). If your text contains
-    special characters, you might need to select it manually in visual mode
-    rather than using the word motion.
-
-Dot command not working~
-    Ensure you're pressing `.` while on a highlighted match. If highlighting
-    is off, press `n` first to jump to the next occurrence.
-
-==============================================================================
-10. LICENSE                                        *dot-rename-license*
+9. LICENSE                                        *dot-rename-license*
 
 MIT License
-
-Copyright (c) 2024
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to
-deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
